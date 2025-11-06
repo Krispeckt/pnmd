@@ -2,7 +2,9 @@ module github.com/TallSmaN/pnmd
 
 go 1.24.9
 
-require github.com/pterm/pterm v0.12.82
+require (
+	github.com/pterm/pterm v0.12.82
+)
 
 require (
 	atomicgo.dev/cursor v0.2.0 // indirect
