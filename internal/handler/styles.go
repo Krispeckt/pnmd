@@ -6,8 +6,8 @@ import (
 	"github.com/pterm/pterm"
 )
 
-// styleForLevel returns a pterm rgb style for the given slog level.
-func styleForLevel(l slog.Level) pterm.RGBStyle {
+// StyleForLevel returns a pterm rgb style for the given slog level.
+func StyleForLevel(l slog.Level) pterm.RGBStyle {
 	switch l {
 	case slog.LevelDebug:
 		return pterm.NewRGB(95, 214, 254).ToRGBStyle().AddOptions(pterm.Bold)

@@ -1,0 +1,125 @@
+package handler
+
+import (
+	"log/slog"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+
+	"github.com/pterm/pterm"
+)
+
+// LogBuilder defines methods for constructing formatted log output.
+type LogBuilder interface {
+	// WriteTime writes the formatted timestamp to the log output.
+	WriteTime()
+
+	// WriteLevel writes the log level representation.
+	WriteLevel()
+
+	// WriteMessage writes the main log message text.
+	WriteMessage()
+
+	// WriteAttrs writes structured attributes and optional caller info.
+	WriteAttrs()
+
+	// Build finalizes and returns the formatted log string.
+	Build() string
+}
+
+// Builder implements LogBuilder to build formatted log entries.
+type Builder struct {
+	r        *slog.Record
+	sb       *strings.Builder
+	spacePad string
+	argCount int
+	style    pterm.RGBStyle
+	opts     Opts
+}
+
+// NewBuilder creates a new Builder instance for the given record and options.
+func NewBuilder(opts Opts, r *slog.Record) *Builder {
+	var sb strings.Builder
+
+	includeCall := opts.IsCallerEnabled(r.Level)
+	argCount := r.NumAttrs()
+
+	if includeCall {
+		argCount++
+	}
+
+	sb.Grow(64 + len(r.Message) + argCount*32)
+	padding := len(time.Time{}.Format(opts.GetTimeFormat())) + opts.GetPadding()
+	spacePad := strings.Repeat(" ", padding)
+	style := StyleForLevel(r.Level)
+
+	return &Builder{
+		opts:     opts,
+		r:        r,
+		sb:       &sb,
+		spacePad: spacePad,
+		argCount: argCount,
+		style:    style,
+	}
+}
+
+// WriteTime appends the formatted log timestamp.
+func (b *Builder) WriteTime() {
+	b.sb.WriteString(pterm.Gray(b.r.Time.Format(b.opts.GetTimeFormat())))
+	b.sb.WriteByte(' ')
+}
+
+// WriteLevel appends the log level label with styling.
+func (b *Builder) WriteLevel() {
+	lvl := b.r.Level.String()
+
+	if len(lvl) > 4 {
+		lvl = lvl[:4]
+	}
+
+	b.sb.WriteString(b.style.Sprint(lvl))
+	b.sb.WriteByte(' ')
+}
+
+// WriteMessage appends the main log message.
+func (b *Builder) WriteMessage() {
+	b.sb.WriteString(b.r.Message)
+}
+
+// WriteAttrs appends log attributes and optional caller information.
+func (b *Builder) WriteAttrs() {
+	i := 0
+
+	b.r.Attrs(func(attr slog.Attr) bool {
+		pipe := "└"
+		if i < b.argCount-1 {
+			pipe = "├"
+		}
+		b.sb.WriteByte('\n')
+		b.sb.WriteString(b.spacePad)
+		b.sb.WriteString(pipe)
+		b.sb.WriteByte(' ')
+		b.sb.WriteString(b.style.Sprint(attr.Key, ": "))
+		b.sb.WriteString(attr.Value.String())
+		i++
+
+		return true
+	})
+
+	if !b.opts.IsCallerEnabled(b.r.Level) {
+		return
+	}
+
+	if fn := runtime.FuncForPC(b.r.PC); fn != nil {
+		f, l := fn.FileLine(b.r.PC)
+		short := filepath.Base(filepath.Dir(f)) + string(filepath.Separator) + filepath.Base(f)
+		b.sb.WriteString("\n" + b.spacePad + "└ " + pterm.NewStyle(pterm.Italic, pterm.FgGray).Sprintf("caller: %s:%d", short, l))
+	}
+}
+
+// Build finalizes the log entry and returns it as a string.
+func (b *Builder) Build() string {
+	b.sb.WriteByte('\n')
+	return b.sb.String()
+}

@@ -14,4 +14,7 @@ type Opts interface {
 
 	// GetPadding returns the amount of padding to apply in log messages.
 	GetPadding() int
+
+	// GetTimeFormat returns the time format string used for log timestamps.
+	GetTimeFormat() string
 }

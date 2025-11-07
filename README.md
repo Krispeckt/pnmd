@@ -16,13 +16,25 @@ package main
 
 import (
 	"log/slog"
+	"os"
+
 	"github.com/TallSmaN/pnmd"
 )
 
 func main() {
 	logger := slog.New(
-		pnmd.NewHandler(pnmd.DefaultOptions()), 
-    )
+		pnmd.NewHandler(os.Stdout, &pnmd.Options{
+			Level: slog.LevelDebug,
+			CallerEnabled: map[slog.Level]bool{
+				slog.LevelDebug: true,
+				slog.LevelInfo:  true,
+				slog.LevelWarn:  true,
+				slog.LevelError: true,
+			},
+			TimeFormat: "2006/01/02 15:04:05",
+			Padding:    3,
+		}),
+	)
 
 	logger.Debug("initializing cache subsystem", "cache", "redis", "host", "localhost", "port", 6379)
 
