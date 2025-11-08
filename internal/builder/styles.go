@@ -1,4 +1,4 @@
-package handler
+package builder
 
 import (
 	"log/slog"

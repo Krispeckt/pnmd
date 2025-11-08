@@ -1,4 +1,4 @@
-package handler
+package builder
 
 import (
 	"log/slog"
@@ -7,26 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TallSmaN/pnmd/internal/opts"
 	"github.com/pterm/pterm"
 )
-
-// LogBuilder defines methods for constructing formatted log output.
-type LogBuilder interface {
-	// WriteTime writes the formatted timestamp to the log output.
-	WriteTime()
-
-	// WriteLevel writes the log level representation.
-	WriteLevel()
-
-	// WriteMessage writes the main log message text.
-	WriteMessage()
-
-	// WriteAttrs writes structured attributes and optional caller info.
-	WriteAttrs()
-
-	// Build finalizes and returns the formatted log string.
-	Build() string
-}
 
 // Builder implements LogBuilder to build formatted log entries.
 type Builder struct {
@@ -35,14 +18,14 @@ type Builder struct {
 	spacePad string
 	argCount int
 	style    pterm.RGBStyle
-	opts     Opts
+	opts     *opts.Options
 }
 
 // NewBuilder creates a new Builder instance for the given record and options.
-func NewBuilder(opts Opts, r *slog.Record) *Builder {
+func NewBuilder(opts *opts.Options, r *slog.Record) *Builder {
 	var sb strings.Builder
 
-	includeCall := opts.IsCallerEnabled(r.Level)
+	includeCall := opts.CallerEnabled[r.Level]
 	argCount := r.NumAttrs()
 
 	if includeCall {
@@ -50,7 +33,7 @@ func NewBuilder(opts Opts, r *slog.Record) *Builder {
 	}
 
 	sb.Grow(64 + len(r.Message) + argCount*32)
-	padding := len(time.Time{}.Format(opts.GetTimeFormat())) + opts.GetPadding()
+	padding := len(time.Time{}.Format(opts.TimeFormat)) + opts.Padding
 	spacePad := strings.Repeat(" ", padding)
 	style := StyleForLevel(r.Level)
 
@@ -66,7 +49,7 @@ func NewBuilder(opts Opts, r *slog.Record) *Builder {
 
 // WriteTime appends the formatted log timestamp.
 func (b *Builder) WriteTime() {
-	b.sb.WriteString(pterm.Gray(b.r.Time.Format(b.opts.GetTimeFormat())))
+	b.sb.WriteString(pterm.Gray(b.r.Time.Format(b.opts.TimeFormat)))
 	b.sb.WriteByte(' ')
 }
 
@@ -107,7 +90,7 @@ func (b *Builder) WriteAttrs() {
 		return true
 	})
 
-	if !b.opts.IsCallerEnabled(b.r.Level) {
+	if !b.opts.CallerEnabled[b.r.Level] {
 		return
 	}
 
